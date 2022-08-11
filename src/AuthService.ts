@@ -148,17 +148,19 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   async logout(shouldEndSession: boolean = false): Promise<boolean> {
+    const idToken = this.getAuthTokens().id_token
     this.removeItem('pkce')
     this.removeItem('auth')
     if (shouldEndSession) {
-      const { clientId, provider, logoutEndpoint, redirectUri } = this.props;
+      const { clientId, provider, logoutEndpoint, redirectUri } = this.props
       const query = {
         client_id: clientId,
-        post_logout_redirect_uri: redirectUri
+        post_logout_redirect_uri: redirectUri,
+        id_token_hint: idToken
       }
       const url = `${logoutEndpoint || `${provider}/logout`}?${toUrlEncoded(query)}`
       window.location.replace(url)
-      return true;
+      return true
     } else {
       window.location.reload()
       return true
