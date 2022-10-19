@@ -139,7 +139,8 @@ export class AuthService<TIDToken = JWTIDToken> {
   isPending(): boolean {
     return (
       window.localStorage.getItem('pkce') !== null &&
-      window.localStorage.getItem('auth') === null
+      window.localStorage.getItem('auth') === null &&
+      this.getCodeFromLocation(window.location) !== null
     )
   }
 
