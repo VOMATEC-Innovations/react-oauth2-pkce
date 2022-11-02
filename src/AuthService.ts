@@ -8,6 +8,7 @@ export interface AuthServiceProps {
   clientId: string
   clientSecret?: string
   contentType?: string
+  includeCredentialsInRequest?: RequestCredentials
   location: Location
   provider: string
   authorizeEndpoint?: string
@@ -206,7 +207,8 @@ export class AuthService<TIDToken = JWTIDToken> {
       provider,
       tokenEndpoint,
       redirectUri,
-      autoRefresh = true
+      autoRefresh = true,
+      includeCredentialsInRequest
     } = this.props
     const grantType = 'authorization_code'
 
@@ -236,6 +238,7 @@ export class AuthService<TIDToken = JWTIDToken> {
       headers: {
         'Content-Type': contentType || 'application/x-www-form-urlencoded'
       },
+      credentials: includeCredentialsInRequest,
       method: 'POST',
       body: toUrlEncoded(payload)
     })
