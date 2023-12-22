@@ -50,6 +50,7 @@ export interface TokenRequestBody {
 export class AuthService<TIDToken = JWTIDToken> {
   props: AuthServiceProps
   timeout?: number
+  refreshAuthErrorCallback?: (error: any) => unknown
 
   constructor(props: AuthServiceProps) {
     this.props = props
@@ -60,10 +61,12 @@ export class AuthService<TIDToken = JWTIDToken> {
           this.restoreUri()
         })
         .catch((e) => {
+          this.setAuthError(e)
           this.removeItem('pkce')
           this.removeItem('auth')
           this.removeCodeFromLocation()
           console.warn({ e })
+          window.location.reload()
         })
     } else if (this.props.autoRefresh) {
       this.startTimer()
@@ -153,6 +156,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     const idToken = this.getAuthTokens().id_token
     this.removeItem('pkce')
     this.removeItem('auth')
+    this.clearAuthError();
     if (shouldEndSession) {
       const { clientId, provider, logoutEndpoint, redirectUri } = this.props
       const query = {
@@ -242,12 +246,12 @@ export class AuthService<TIDToken = JWTIDToken> {
       method: 'POST',
       body: toUrlEncoded(payload)
     })
-    if (isRefresh && !response.ok) {
-      await this.logout()
-      await this.login()
+    let json = await response.json()
+    if (!response.ok) {
+      throw json
     }
     this.removeItem('pkce')
-    let json = await response.json()
+    this.clearAuthError()
     if (isRefresh && !json.refresh_token) {
       json.refresh_token = payload.refresh_token
     }
@@ -276,6 +280,8 @@ export class AuthService<TIDToken = JWTIDToken> {
           }
         })
         .catch((e) => {
+          this.setAuthError(e)
+          this.invokeRefreshAuthErrorCallback(e)
           this.removeItem('auth')
           this.removeCodeFromLocation()
           console.warn({ e })
@@ -311,4 +317,30 @@ export class AuthService<TIDToken = JWTIDToken> {
     }
     this.removeCodeFromLocation()
   }
+
+  getAuthError(): any {
+    const value = window.sessionStorage.getItem('auth-error')
+    if (!value)
+      return
+
+    return JSON.parse(value)
+  }
+
+  setAuthError(error: any): void {
+    window.sessionStorage.setItem('auth-error', JSON.stringify(error))
+  }
+
+  clearAuthError(): void {
+    window.sessionStorage.removeItem('auth-error')
+  }
+
+  invokeRefreshAuthErrorCallback(error: any): void {
+    if (this.refreshAuthErrorCallback)
+      this.refreshAuthErrorCallback(error)
+  }
+
+  setRefreshAuthErrorCallback(cb: (errror: any) => unknown): void {
+    this.refreshAuthErrorCallback = cb
+  }
+
 }
