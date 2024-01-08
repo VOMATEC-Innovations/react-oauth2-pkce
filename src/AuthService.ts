@@ -55,7 +55,7 @@ export class AuthService<TIDToken = JWTIDToken> {
   constructor(props: AuthServiceProps) {
     this.props = props
     const code = this.getCodeFromLocation(window.location)
-    if (code !== null) {
+    if (code !== null && this.getItem('pkce') !== null) {
       this.fetchToken(code)
         .then(() => {
           this.restoreUri()
@@ -68,14 +68,14 @@ export class AuthService<TIDToken = JWTIDToken> {
           console.warn({ e })
           window.location.reload()
         })
-    } else if (this.props.autoRefresh) {
+    } else if (this.props.autoRefresh && !!this.getItem('auth')) {
       this.startTimer()
     }
   }
 
   getUser(): {} {
     const t = this.getAuthTokens()
-    if (null === t) return {}
+    if (!t || !t.id_token) return {}
     const decoded = jwtDecode(t.id_token) as TIDToken
     return decoded
   }
@@ -327,7 +327,7 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   setAuthError(error: any): void {
-    window.sessionStorage.setItem('auth-error', JSON.stringify(error))
+    window.sessionStorage.setItem('auth-error', JSON.stringify(this._serializeError(error)))
   }
 
   clearAuthError(): void {
@@ -343,4 +343,25 @@ export class AuthService<TIDToken = JWTIDToken> {
     this.refreshAuthErrorCallback = cb
   }
 
+  _serializeError(error: any, level = 1): any {
+    if (level === 4) {
+      return error.toString()
+    }
+
+    if (!(error instanceof Error)) {
+      return error
+    }
+
+    const serializedError: any = {$type: Object.getPrototypeOf(error).name, name: error.name, stack: error.stack, message: error.message}
+
+    if (error instanceof AggregateError) {
+      serializedError.errors = error.errors.map((innerEx) => this._serializeError(innerEx, level + 1))
+    }
+
+    if (!!error.cause) {
+      serializedError.innerException = this._serializeError(error.cause, level + 1);
+    }
+
+    return serializedError;
+  }
 }
