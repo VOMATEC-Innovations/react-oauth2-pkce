@@ -358,8 +358,8 @@ export class AuthService<TIDToken = JWTIDToken> {
       serializedError.errors = error.errors.map((innerEx) => this._serializeError(innerEx, level + 1))
     }
 
-    if (!!error.cause) {
-      serializedError.innerException = this._serializeError(error.cause, level + 1);
+    if (!!(error as any).cause) {
+      serializedError.innerException = this._serializeError((error as any).cause, level + 1);
     }
 
     return serializedError;
