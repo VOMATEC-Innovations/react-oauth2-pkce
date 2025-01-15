@@ -1,4 +1,4 @@
-# react-oauth2-pkce
+# @vomatec-innovations/react-oauth2-pkce
 
 > Authenticate against generic OAuth2 using PKCE
 
@@ -7,14 +7,14 @@
 ## Install
 
 ```bash
-npm install --save react-oauth2-pkce
+npm install --save react-oauth2-pkce-legacy
 ```
 
 ## Usage
 
 ```tsx
 import React from 'react'
-import { AuthProvider, AuthService } from 'react-oauth2-pkce'
+import { AuthProvider, AuthService } from 'react-oauth2-pkce-legacy'
 
 import { Routes } from './Routes';
 
@@ -43,6 +43,13 @@ After https://github.com/gardner/react-oauth2-pkce/pull/16 it is possible to pas
 
 ### End User Session on "Single Application Logout"
 You can end user session when calling `logout(true)`. A custom endpoint can configured by passing `logoutEndpoint` as props. The user will be redirected to the `redirectUri`.
+
+## Build
+```
+npm install
+npm run-script build
+npm publish
+```
 
 ## License
 

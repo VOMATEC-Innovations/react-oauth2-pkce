@@ -50,29 +50,32 @@ export interface TokenRequestBody {
 export class AuthService<TIDToken = JWTIDToken> {
   props: AuthServiceProps
   timeout?: number
+  refreshAuthErrorCallback?: (error: any) => unknown
 
   constructor(props: AuthServiceProps) {
     this.props = props
     const code = this.getCodeFromLocation(window.location)
-    if (code !== null) {
+    if (code !== null && this.getItem('pkce') !== null) {
       this.fetchToken(code)
         .then(() => {
           this.restoreUri()
         })
         .catch((e) => {
+          this.setAuthError(e)
           this.removeItem('pkce')
           this.removeItem('auth')
           this.removeCodeFromLocation()
           console.warn({ e })
+          window.location.reload()
         })
-    } else if (this.props.autoRefresh) {
+    } else if (this.props.autoRefresh && !!this.getItem('auth')) {
       this.startTimer()
     }
   }
 
   getUser(): {} {
     const t = this.getAuthTokens()
-    if (null === t) return {}
+    if (!t || !t.id_token) return {}
     const decoded = jwtDecode(t.id_token) as TIDToken
     return decoded
   }
@@ -153,6 +156,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     const idToken = this.getAuthTokens().id_token
     this.removeItem('pkce')
     this.removeItem('auth')
+    this.clearAuthError();
     if (shouldEndSession) {
       const { clientId, provider, logoutEndpoint, redirectUri } = this.props
       const query = {
@@ -242,12 +246,12 @@ export class AuthService<TIDToken = JWTIDToken> {
       method: 'POST',
       body: toUrlEncoded(payload)
     })
-    if (isRefresh && !response.ok) {
-      await this.logout()
-      await this.login()
+    let json = await response.json()
+    if (!response.ok) {
+      throw json
     }
     this.removeItem('pkce')
-    let json = await response.json()
+    this.clearAuthError()
     if (isRefresh && !json.refresh_token) {
       json.refresh_token = payload.refresh_token
     }
@@ -276,6 +280,8 @@ export class AuthService<TIDToken = JWTIDToken> {
           }
         })
         .catch((e) => {
+          this.setAuthError(e)
+          this.invokeRefreshAuthErrorCallback(e)
           this.removeItem('auth')
           this.removeCodeFromLocation()
           console.warn({ e })
@@ -310,5 +316,52 @@ export class AuthService<TIDToken = JWTIDToken> {
       window.location.replace(uri)
     }
     this.removeCodeFromLocation()
+  }
+
+  getAuthError(): any {
+    const value = window.sessionStorage.getItem('auth-error')
+    if (!value)
+      return
+
+    return JSON.parse(value)
+  }
+
+  setAuthError(error: any): void {
+    window.sessionStorage.setItem('auth-error', JSON.stringify(this._serializeError(error)))
+  }
+
+  clearAuthError(): void {
+    window.sessionStorage.removeItem('auth-error')
+  }
+
+  invokeRefreshAuthErrorCallback(error: any): void {
+    if (this.refreshAuthErrorCallback)
+      this.refreshAuthErrorCallback(error)
+  }
+
+  setRefreshAuthErrorCallback(cb: (errror: any) => unknown): void {
+    this.refreshAuthErrorCallback = cb
+  }
+
+  _serializeError(error: any, level = 1): any {
+    if (level === 4) {
+      return error.toString()
+    }
+
+    if (!(error instanceof Error)) {
+      return error
+    }
+
+    const serializedError: any = {$type: Object.getPrototypeOf(error).name, name: error.name, stack: error.stack, message: error.message}
+
+    if (error instanceof AggregateError) {
+      serializedError.errors = error.errors.map((innerEx) => this._serializeError(innerEx, level + 1))
+    }
+
+    if (!!(error as any).cause) {
+      serializedError.innerException = this._serializeError((error as any).cause, level + 1);
+    }
+
+    return serializedError;
   }
 }
