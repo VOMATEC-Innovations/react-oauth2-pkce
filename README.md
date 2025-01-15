@@ -1,4 +1,4 @@
-# @vomatec-innovations/react-oauth2-pkce
+# react-oauth2-pkce-legacy
 
 > Authenticate against generic OAuth2 using PKCE
 
